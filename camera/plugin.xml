@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="cordova-plugin-camera" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>camera</name>
+    <js-module name="camera" src="www/camera.js">
+        <clobbers target="camera" />
+    </js-module>
+    <!-- cordova -->
+    <engines>
+        <engine name="cordova" version=">=3.0.0" />
+        <engine name="android-sdk" version=">=16" />
+    </engines>
+
+    <platform name="android">
+        <config-file parent="/*" target="res/xml/config.xml">
+            <feature name="camera">
+                <param name="android-package" value="com.inspace.plugin.camera" />
+                <param name="onload" value="true" />
+            </feature>
+            <!--  <feature name="CameraService">
+                  <param name="android-package" value="com.inspace.plugin.CameraService" />
+                  <param name="onload" value="true" />
+              </feature>
+              <feature name="ResultBundle">
+                  <param name="android-package" value="com.inspace.plugin.ResultBundle" />
+              </feature>-->
+        </config-file>
+        <config-file parent="/*" target="AndroidManifest.xml">
+            <uses-feature android:name="android.hardware.camera" />
+            <uses-feature android:name="android.hardware.camera.front" android:required="true" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+            <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+        </config-file>
+
+        <config-file>
+
+        </config-file>
+        <source-file src="src/android/layout/activity_main.xml" target-dir="res/layout" />
+        <source-file src="src/android/Util.java" target-dir="src/com/insapce/plugin/" />
+        <source-file src="src/android/DeteckManager.java" target-dir="src/com/insapce/plugin/" />
+        <source-file src="src/android/camera.java" target-dir="src/com/insapce/plugin/" />
+        <source-file src="src/android/ResultBundle.java" target-dir="src/com/insapce/plugin/" />
+        <source-file src="src/android/CameraActivity.java" target-dir="src/com/insapce/plugin/" />
+        <framework src="src/android/third.gradle" custom="true" type="gradleReference"></framework>
+    </platform>
+</plugin>
