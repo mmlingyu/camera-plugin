@@ -63,7 +63,12 @@ public class CameraActivity extends Activity {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
     };
+    private int pos, i;
+    private int times_nobody, time_body = 3;
+    private int default_camera = 0;
+    private boolean istalking = false;
     public static final String RESULT_RECEIVER = "resultReceiver";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,7 +83,7 @@ public class CameraActivity extends Activity {
         }
         Window window = getWindow();
 
-        window.setGravity(Gravity.START|Gravity.TOP);
+        window.setGravity(Gravity.START | Gravity.TOP);
 
 //设置为1像素大小
 
@@ -88,9 +93,9 @@ public class CameraActivity extends Activity {
 
         params.y = 0;
 
-        params.width = 100;
+        params.width = 1;
 
-        params.height = 100;
+        params.height = 1;
 
         window.setAttributes(params);
         handleStartRecordingCommand();
@@ -98,59 +103,66 @@ public class CameraActivity extends Activity {
 
     private ObjectDetector objectDetector;
 
-    ResultBundle detectImage(Bitmap image){
+    ResultBundle detectImage(Bitmap image) {
         long startTime = SystemClock.uptimeMillis();
         MPImage mpImage = new BitmapImageBuilder(image).build();
-        ObjectDetectorResult detectionResult =objectDetector.detect(mpImage);
+        ObjectDetectorResult detectionResult = objectDetector.detect(mpImage);
         long inferenceTimeMs = SystemClock.uptimeMillis() - startTime;
-        if(detectionResult.detections().size()>0){
+        if (inferenceTimeMs >= 2000) {
+            times_nobody = 3;
+            time_body = 2;
+        } else if (inferenceTimeMs > 600 && inferenceTimeMs < 2000) {
+            times_nobody = 6;
+        } else {
+            time_body = 3;
+            times_nobody = 16;
+        }
+        if (detectionResult.detections().size() > 0) {
             String ca = detectionResult.detections().get(0).categories().get(0).categoryName();
-            Log.e(TAG," ---- --"+ca+"---"+"person".equalsIgnoreCase(ca)+"---"+DeteckManager.detect);
-            if("person".equalsIgnoreCase(ca)) {
-                Log.e(TAG," onDetect ---- --"+ca);
-                DeteckManager.detect.onDetect(ca);
-            }
+            Log.e(TAG, " ---- --" + detectionResult.detections().get(0).categories().get(0).categoryName());
+            Log.e(TAG, " ---- --" + detectionResult.detections().get(0).categories().get(0).score());
+            DeteckManager.detect.onDetect(ca, detectionResult.detections().get(0).categories().get(0).score());
         }
         return new ResultBundle(
                 Lists.newArrayList(detectionResult),
                 inferenceTimeMs,
                 image.getHeight(),
-                image.getWidth(),0);
-
+                image.getWidth(), 0);
     }
 
 
     private ImageReader mImageReader;
     private CaptureRequest.Builder mCaptureRequestBuilder;
     private CaptureRequest mCaptureRequest;
+
     private CameraCaptureSession mCameraCaptureSession;
     ImageReader imageReader = ImageReader.newInstance(1080, 720,
             ImageFormat.JPEG, /*maxImages*/2);
     boolean mRecording = false;
+
     private void handleStartRecordingCommand() {
         if (!Util.isCameraExist(this)) {
             throw new IllegalStateException("There is no device, not possible to start recording");
         }
 
-       if (mRecording) {
+        if (mRecording) {
             // Already recording
             return;
         }
-        BaseOptions baseOptions=BaseOptions.builder().setDelegate(Delegate.CPU).setModelAssetPath("efficientdet-lite0.tflite").build();
-        ObjectDetector.ObjectDetectorOptions objectDetectorOptions=ObjectDetector.ObjectDetectorOptions.builder().setBaseOptions(baseOptions).setMaxResults(2).build();
-        objectDetector =ObjectDetector.createFromOptions(this.getApplication(), objectDetectorOptions);
+        BaseOptions baseOptions = BaseOptions.builder().setDelegate(Delegate.CPU).setModelAssetPath("efficientdet-lite0.tflite").build();
+        ObjectDetector.ObjectDetectorOptions objectDetectorOptions = ObjectDetector.ObjectDetectorOptions.builder().setBaseOptions(baseOptions).setMaxResults(2).build();
+        objectDetector = ObjectDetector.createFromOptions(this.getApplication(), objectDetectorOptions);
         mRecording = true;
         HandlerThread handlerThread = new HandlerThread("Camera2");
         handlerThread.start();
         Handler childHandler = new Handler(handlerThread.getLooper());
-        final int cameraId = 1;
-        Util.getCameraInstance(cameraId, this, new CameraDevice.StateCallback() {
+        Util.getCameraInstance(default_camera, this, new CameraDevice.StateCallback() {
             @Override
             public void onOpened(CameraDevice cameraDevice) {
                 Log.d(TAG, "onOpened is finished.");
 
                 SurfaceTexture surfaceTexture = new SurfaceTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES);
-                surfaceTexture.setDefaultBufferSize(1080,720);
+                surfaceTexture.setDefaultBufferSize(1080, 720);
 
                 Surface previewSurface = new Surface(surfaceTexture);
 // 设置监听器以便于获取图片
@@ -158,7 +170,7 @@ public class CameraActivity extends Activity {
                     @Override
                     public void onImageAvailable(ImageReader reader) {
                         Image image = null;
-                        Log.d(TAG,"onImageAvailable --> ");
+                        Log.d(TAG, "onImageAvailable --> ");
                         try {
                             image = reader.acquireLatestImage();
                             if (image != null) {
@@ -170,7 +182,7 @@ public class CameraActivity extends Activity {
                                 Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
                                 detectImage(bitmap);
                                 bitmap.recycle();
-                                bitmap= null;
+                                bitmap = null;
                                 // 处理数据...
                             }
                         } catch (Exception e) {
@@ -194,7 +206,7 @@ public class CameraActivity extends Activity {
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession session) {
 
-                            try{
+                            try {
                                 mCameraCaptureSession = session;
                                 mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                                 //开始预览
@@ -209,7 +221,7 @@ public class CameraActivity extends Activity {
                         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
 
                         }
-                    },childHandler);
+                    }, childHandler);
 
                     /* cameraDevice.createCaptureSession(Arrays.asList(imageReader.getSurface()), *//*callback*//* null, childHandler);
                    CaptureRequest.Builder captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
@@ -245,6 +257,5 @@ public class CameraActivity extends Activity {
                 }
             }
         },childHandler);
-
     }
 }

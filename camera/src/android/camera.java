@@ -18,7 +18,9 @@ import org.apache.cordova.PluginResult;
  */
 public class camera extends CordovaPlugin {
     // Service that keeps the app awake
-
+    private int pos, i;
+    private int times_nobody, time_body = 3;
+    private boolean istalking = false;
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
@@ -37,13 +39,12 @@ public class camera extends CordovaPlugin {
             } catch (Exception e) {
 
             }*/
-        }
-        else if (action.equals("coolMethod")) {
+        } else if (action.equals("coolMethod")) {
             Activity context = cordova.getActivity();
             Intent intent = new Intent(context, CameraActivity.class);
-            Log.e("------------------------",action);
+            Log.e("------------------------", action);
             context.startActivity(intent);
-           String message = args.getString(0);
+            String message = args.getString(0);
             this.coolMethod(message, callbackContext);
             return true;
         }
@@ -51,26 +52,46 @@ public class camera extends CordovaPlugin {
     }
 
     private CallbackContext callbackContext;
+
     private void coolMethod(String message, CallbackContext callbackContext) {
         this.callbackContext = callbackContext;
         DeteckManager.detect = new DeteckManager.Detect() {
             @Override
-            public void onDetect(String msg) {
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK,msg);
-                pluginResult.setKeepCallback(true);
-                Log.e("onDetect------------------------",msg);
-                callbackContext.sendPluginResult(pluginResult);
+            public void onDetect(String msg, float score) {
+
+                if ("person".equalsIgnoreCase(msg) && score >= 0.6) {
+                    pos++;
+                    if (pos >= time_body) {
+                        pos = 0;
+                        if (istalking) {
+                            //changeHelloGif();
+                        } else {
+                            istalking = true;
+                            //  changeHelloGif();
+                            // TtsManager.getInstance().speak("有人来了 欢迎光临！" + msg, 1.0F, true);
+                            PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, msg);
+                            pluginResult.setKeepCallback(true);
+                            Log.e("onDetect------------------------", msg);
+                            callbackContext.sendPluginResult(pluginResult);
+                        }
+
+
+                    }
+                } else {
+                    i++;
+                    if (i == 0 || i >= times_nobody) {
+                        i = 0;
+                        istalking = false;
+                        // TtsManager.getInstance().speak("你在哪里 看不到了！" + msg, 1.0F, true);
+                        //changeGif();
+                        PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, "lost");
+                        pluginResult.setKeepCallback(true);
+                        Log.e("onDetect------------------------", "lost");
+                        callbackContext.sendPluginResult(pluginResult);
+
+                    }
+                }
             }
         };
-     /*   if (message != null && message.length() > 0) {
-            callbackContext.success(message);
-        } else {
-            callbackContext.error("Expected one non-empty string argument.");
-        }*/
-
-
-
-
-
     }
 }
